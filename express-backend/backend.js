@@ -85,20 +85,40 @@ function findUserById(id) {
     //return users['users_list'].filter( (user) => user['id'] === id);
 }
 
+function makeRandomId() {
+    let result = '';
+    const characters = 'abcdefghijklmnopqrstuvwxyz';
+    const charactersLength = characters.length;
+    let counter = 0;
+    while (counter < 3) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+      counter += 1;
+    }
+    counter = 0;
+    const numbers = '0123456789';
+    const numbersLength = numbers.length;
+    while (counter < 3) {
+        result += numbers.charAt(Math.floor(Math.random() * numbersLength));
+        counter += 1;
+      }
+    return result;
+}
+
 app.post('/users', (req, res) => {
     const userToAdd = req.body;
     addUser(userToAdd);
-    res.status(200).end();
+    res.status(201).send(userToAdd).end(); // Is this the correct response??
 });
 
 function addUser(user){
+    user.id = makeRandomId();
     users['users_list'].push(user);
 }
 
 app.delete('/users/:id', (req, res) => {
-    const id = req.params.id;
+    const id = req.params['id'];
     deleteUser(id);
-    res.status(200).end();
+    res.status(204).end();
 });
 
 function deleteUser(id){
