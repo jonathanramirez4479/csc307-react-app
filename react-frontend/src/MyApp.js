@@ -8,7 +8,7 @@ function MyApp() {
     const [characters, setCharacters] =  useState([]);
 
     function removeOneCharacter(index){
-      makeDeleteCall().then( result => { // Why is it not deleting in backend?
+      makeDeleteCall(characters[index].id).then( result => { 
         if(result && result.status === 204){
             const updated = characters.filter((characters, i) => {
             return i !== index
@@ -21,7 +21,7 @@ function MyApp() {
     function updateList(person) {
       makePostCall(person).then( result => {
       if (result && result.status === 201)
-          setCharacters([...characters, person]); // Not sure what problem 3 asks for??
+          setCharacters([...characters, result.data]);
       });
     }
 
@@ -47,9 +47,9 @@ function MyApp() {
        return false;
     }
  }
-  async function makeDeleteCall(){
+  async function makeDeleteCall(id){
     try {
-      const response = await axios.delete('http://localhost:8000/users/:id');
+      const response = await axios.delete('http://localhost:8000/users/' + id);
       return response;
     }
     catch (error) {
