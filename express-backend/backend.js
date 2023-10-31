@@ -117,12 +117,23 @@ function addUser(user){
 
 app.delete('/users/:id', (req, res) => {
     const id = req.params['id'];
-    deleteUser(id);
-    res.status(204).end();
+    const result = deleteUser(id);
+    if(result === true)
+        {res.status(204).end();}
+    else
+       { res.status(404).end();}
 });
 
 function deleteUser(id){
-    users['users_list'] = users['users_list'].filter( (user) => user['id'] !== id);
+    
+    const filtered = users['users_list'].filter( (user) => user['id'] !== id);
+    if(filtered === users['users_list'])
+       { return false;}
+    else
+    {
+        users['users_list'] = filtered;
+        return true;
+    }
 }
 
 app.listen(port, () => {
