@@ -1,141 +1,103 @@
-// backend.js
 import express from "express";
-import cors from 'cors';
+import cors from "cors";
+
+import userServices from "./models/user-services.js";
+import user from "./models/user.js";
 
 const app = express();
 const port = 8000;
 
-const users = { 
-    users_list :
-    [
-       { 
-          id : 'xyz789',
-          name : 'Charlie',
-          job: 'Janitor',
-       },
-       {
-          id : 'abc123', 
-          name: 'Mac',
-          job: 'Bouncer',
-       },
-       {
-          id : 'ppp222', 
-          name: 'Mac',
-          job: 'Professor',
-       }, 
-       {
-          id: 'yat999', 
-          name: 'Dee',
-          job: 'Aspring actress',
-       },
-       {
-          id: 'zap555', 
-          name: 'Dennis',
-          job: 'Bartender',
-       }
-    ]
- }
-
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
+app.get("/", (req, res) => {
+  res.send("Hello World!");
 });
 
-app.get('/users', (req, res) => {
-    const name = req.query.name;
-    const job = req.query.job;
-    if(name != undefined && job != undefined){
-        let result = findUserByNameAndJob(name, job);
-        result = {users_list: result};
-        res.send(result);
+app.get("/users", async (req, res) => {
+  // res.send(users); this is a very very very very very very very very very long line
+  //HTTP code 200 is set by default. See an alternative below
+  // res.status(200).send(users);
+  const name = req.query["name"];
+  const job = req.query["job"];
+  if (name === undefined && job === undefined) {
+    try {
+      const users_from_db = await userServices.getUsers();
+      res.send({ users_list: users_from_db });
+    } catch (error) {
+      console.log("Mongoose error: " + error);
+      res.status(500).send("An error ocurred in the server.");
     }
-    else if (name != undefined){
-        let result = findUserByName(name);
-        result = {users_list: result};
-        res.send(result);
-    }
-    else{
-        res.send(users);
-    }
+  } else if (name && job === undefined) {
+    let result = await userServices.findUserByName(name);
+    result = { users_list: result };
+    res.send(result);
+  } else if (job && name === undefined) {
+    let result = await userServices.findUserByJob(job);
+    result = { users_list: result };
+    res.send(result);
+  } else {
+    let result = await userServices.findUserByNameAndJob(name, job);
+    result = { users_list: result };
+    res.send(result);
+  }
 });
 
-const findUserByName = (name) => { 
-    return users['users_list'].filter( (user) => user['name'] === name); 
-}
-
-const findUserByNameAndJob = (name, job) => {
-    return users['users_list'].filter( (user) => user['name'] === name && user['job'] === job);
-}
-
-app.get('/users/:id', (req, res) => {
-    const id = req.params['id']; //or req.params.id
-    let result = findUserById(id);
-    if (result === undefined || result.length == 0)
-        res.status(404).send('Resource not found.');
-    else {
-        result = {users_list: result};
-        res.send(result);
-    }
+app.get("/users/:id", async (req, res) => {
+  const id = req.params["id"];
+  const result = await userServices.findUserById(id);
+  if (result === undefined || result === null)
+    res.status(404).send("Resource not found.");
+  else {
+    res.send({ users_list: result });
+  }
 });
 
-function findUserById(id) {
-    return users['users_list'].find( (user) => user['id'] === id); // or line below
-    //return users['users_list'].filter( (user) => user['id'] === id);
-}
-
-function makeRandomId() {
-    let result = '';
-    const characters = 'abcdefghijklmnopqrstuvwxyz';
-    const charactersLength = characters.length;
-    let counter = 0;
-    while (counter < 3) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-      counter += 1;
-    }
-    counter = 0;
-    const numbers = '0123456789';
-    const numbersLength = numbers.length;
-    while (counter < 3) {
-        result += numbers.charAt(Math.floor(Math.random() * numbersLength));
-        counter += 1;
-      }
-    return result;
-}
-
-app.post('/users', (req, res) => {
-    const userToAdd = req.body;
-    addUser(userToAdd);
-    res.status(201).send(userToAdd).end(); // Is this the correct response??
+app.post("/users", async (req, res) => {
+  const user = req.body;
+  const savedUser = await userServices.addUser(user);
+  if (savedUser) res.status(201).send(savedUser).end();
+  else res.status(500).end();
 });
 
-function addUser(user){
-    user.id = makeRandomId();
-    users['users_list'].push(user);
+async function deleteUserById(id) {
+  try {
+    if (await userServices.deleteUser(id)) return true;
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
 }
 
-app.delete('/users/:id', (req, res) => {
-    const id = req.params['id'];
-    const result = deleteUser(id);
-    if(result === true)
-        {res.status(204).end();}
-    else
-       { res.status(404).end();}
+app.delete("/users/:id", async (req, res) => {
+  const id = req.params["id"];
+  if (deleteUserById(id)) res.status(204).end();
+  else res.status(404).send("Resource not found.");
 });
 
-function deleteUser(id){
-    
-    const filtered = users['users_list'].filter( (user) => user['id'] !== id);
-    if(filtered === users['users_list'])
-       { return false;}
-    else
-    {
-        users['users_list'] = filtered;
-        return true;
-    }
+app.patch("/users/:id", async (req, res) => {
+  const id = req.params["id"];
+  const updatedUser = req.body;
+  const result = await updateUser(id, updatedUser);
+  if (result === 204) res.status(204).end();
+  else if (result === 404) res.status(404).send("Resource not found.");
+  else if (result === 500) {
+    res.status(500).send("An error ocurred in the server.");
+  }
+});
+
+async function updateUser(id, updatedUser) {
+  try {
+    const result = await user.findByIdAndUpdate(id, updatedUser);
+    if (result) return 204;
+    else return 404;
+  } catch (error) {
+    console.log(error);
+    return 500;
+  }
 }
+
 
 app.listen(port, () => {
-    console.log(`Example app listening at http://localhost:${port}`);
-});   
+  console.log(`Example app listening at http://localhost:${port}`);
+});
